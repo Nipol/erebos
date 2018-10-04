@@ -2,25 +2,22 @@
 
 import { keccak256 } from 'js-sha3'
 
-const BZZ_KEY_LENGTH = 32
-const MRU_META_HASH_LENGTH = BZZ_KEY_LENGTH
-const MRU_ROOT_ADDR_LENGTH = BZZ_KEY_LENGTH
-const MRU_UPDATE_VERSION_LENGTH = 4
-const MRU_UPDATE_PERIOD_LENGTH = 4
-const MRU_UPDATE_FLAG_LENGTH = 1
-const MRU_UPDATE_DATA_LENGTH_LENGTH = 2
-const MRU_UPDATE_HEADER_LENGTH_LENGTH = 2
-const MRU_UPDATE_HEADER_LENGTH =
-  MRU_META_HASH_LENGTH +
-  MRU_ROOT_ADDR_LENGTH +
-  MRU_UPDATE_VERSION_LENGTH +
-  MRU_UPDATE_PERIOD_LENGTH +
-  MRU_UPDATE_FLAG_LENGTH
+const FEED_TOPIC_LENGTH = 32
+const FEED_USER_LENGTH = 20
+const FEED_TIME_LENGTH = 7
+const FEED_LEVEL_LENGTH = 1
+const FEED_HEADER_LENGTH = 8
 
-const BUFFER_WRITE_SIZE = {
-  1: 'writeUInt8',
-  2: 'writeUInt16LE',
-  4: 'writeUInt32LE',
+export type FeedRequest = {
+  feed: {
+    topic: string,
+    user: string,
+  },
+  epoch: {
+    time: number,
+    level: number,
+  },
+  protocolVersion: number,
 }
 
 export type DirectoryData = {
@@ -46,145 +43,196 @@ export type ListResult = {
   entries?: Array<ListEntry>,
 }
 
-export type ResourceDigestParams = {
-  period: number,
-  version: number,
-  multihash: boolean,
-  data: Buffer | string,
-  metaHash: string,
-  rootAddr: string,
+export type BzzMode = 'default' | 'immutable' | 'raw'
+
+export type SharedOptions = {
+  contentType?: string,
+  path?: string,
+}
+
+export type DownloadOptions = SharedOptions & {
+  mode?: BzzMode,
+}
+
+export type UploadOptions = SharedOptions & {
+  defaultPath?: string,
+  encrypt?: boolean,
+  manifestHash?: string,
+}
+
+export const BZZ_MODE_PROTOCOLS = {
+  default: 'bzz:/',
+  immutable: 'bzz-immutable:/',
+  raw: 'bzz-raw:/',
+}
+
+export const getModeProtocol = (mode?: ?BzzMode): string => {
+  return (mode && BZZ_MODE_PROTOCOLS[mode]) || BZZ_MODE_PROTOCOLS.default
 }
 
 export const bufferFromHex = (value: string): Buffer => {
   return Buffer.from(value.substr(2), 'hex')
 }
 
-export const createBuffer = (size: 1 | 2 | 4, value: number): Buffer => {
-  const writeFunc = BUFFER_WRITE_SIZE[size]
-  if (writeFunc == null) {
-    throw new Error('Invalid size')
+export const createFeedDigest = (
+  request: FeedRequest,
+  data: string | Buffer,
+): string => {
+  const topicBuffer = bufferFromHex(request.feed.topic)
+  if (topicBuffer.length !== FEED_TOPIC_LENGTH) {
+    throw new Error('Invalid topic length')
   }
-  const buffer = Buffer.allocUnsafe(size)
-  buffer[writeFunc](value, 0)
-  return buffer
-}
-
-const getBuffer = (size: number, value: string): Buffer => {
-  const buffer = bufferFromHex(value)
-  if (buffer.length !== size) {
-    throw new Error('Invalid input')
+  const userBuffer = bufferFromHex(request.feed.user)
+  if (userBuffer.length !== FEED_USER_LENGTH) {
+    throw new Error('Invalid user length')
   }
-  return buffer
-}
 
-const HEADER_LENGTH_BUFFER = createBuffer(
-  MRU_UPDATE_HEADER_LENGTH_LENGTH,
-  MRU_UPDATE_HEADER_LENGTH,
-)
+  const headerBuffer = Buffer.alloc(FEED_HEADER_LENGTH, 0)
+  headerBuffer.writeInt8(request.protocolVersion, 0)
+  const timeBuffer = Buffer.alloc(FEED_TIME_LENGTH, 0)
+  timeBuffer.writeUInt32LE(request.epoch.time, 0)
+  const levelBuffer = Buffer.alloc(FEED_LEVEL_LENGTH, 0)
+  levelBuffer.writeUInt8(request.epoch.level, 0)
 
-export const createResourceDigest = (params: ResourceDigestParams): string => {
-  const data = Buffer.isBuffer(params.data)
-    ? params.data
-    : bufferFromHex(params.data)
+  // $FlowFixMe: Flow doesn't handle Buffer.isBuffer() type check
+  const dataBuffer: Buffer = Buffer.isBuffer(data) ? data : bufferFromHex(data)
+
   const payload = Buffer.concat([
-    HEADER_LENGTH_BUFFER,
-    createBuffer(MRU_UPDATE_DATA_LENGTH_LENGTH, data.length),
-    createBuffer(MRU_UPDATE_PERIOD_LENGTH, params.period),
-    createBuffer(MRU_UPDATE_VERSION_LENGTH, params.version),
-    getBuffer(MRU_ROOT_ADDR_LENGTH, params.rootAddr),
-    getBuffer(MRU_META_HASH_LENGTH, params.metaHash),
-    createBuffer(MRU_UPDATE_FLAG_LENGTH, params.multihash ? 1 : 0),
-    data,
+    headerBuffer,
+    topicBuffer,
+    userBuffer,
+    timeBuffer,
+    levelBuffer,
+    dataBuffer,
   ])
   return '0x' + keccak256(payload)
+}
+
+export class HTTPError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
 }
 
 export const resOrError = (res: *) => {
   return res.ok
     ? Promise.resolve(res)
-    : Promise.reject(new Error(res.statusText))
+    : Promise.reject(new HTTPError(res.status, res.statusText))
 }
 
-export const parseJSON = (res: *) => resOrError(res).then(r => r.json())
-export const parseText = (res: *) => resOrError(res).then(r => r.text())
+export const resJSON = (res: *) => resOrError(res).then(r => r.json())
 
-export type BzzParams = {
-  fetch: *,
-  FormData: *,
-  url: string,
-}
+export const resText = (res: *) => resOrError(res).then(r => r.text())
 
 export default class BaseBzz {
   _fetch: *
-  _FormData: *
   _url: string
 
   constructor(url: string) {
     this._url = new URL(url).toString()
   }
 
+  _getDownloadURL(
+    hash: string,
+    options: DownloadOptions,
+    raw?: boolean = false,
+  ): string {
+    const protocol = raw
+      ? BZZ_MODE_PROTOCOLS.raw
+      : getModeProtocol(options.mode)
+    let url = this._url + protocol + hash
+    if (options.path != null) {
+      url += `/${options.path}`
+    }
+    if (options.mode === 'raw' && options.contentType != null) {
+      url += `?content_type=${options.contentType}`
+    }
+    return url
+  }
+
+  _getUploadURL(options: UploadOptions, raw?: boolean = false): string {
+    // Default URL to creation
+    let url = this._url + BZZ_MODE_PROTOCOLS[raw ? 'raw' : 'default']
+    // Manifest update if hash is provided
+    if (options.manifestHash != null) {
+      url += `${options.manifestHash}/`
+      if (options.path != null) {
+        url += options.path
+      }
+    }
+    return url
+  }
+
+  hash(domain: string): Promise<string> {
+    return this._fetch(`${this._url}bzz-hash:/${domain}`).then(resText)
+  }
+
+  list(hash: string, options?: DownloadOptions = {}): Promise<ListResult> {
+    let url = `${this._url}bzz-list:/${hash}`
+    if (options.path != null) {
+      url += `/${options.path}`
+    }
+    return this._fetch(url).then(resJSON)
+  }
+
+  _download(
+    hash: string,
+    options: DownloadOptions,
+    headers?: Object = {},
+  ): Promise<*> {
+    const url = this._getDownloadURL(hash, options)
+    return this._fetch(url, { headers }).then(resOrError)
+  }
+
+  download(hash: string, options?: DownloadOptions = {}): Promise<*> {
+    return this._download(hash, options)
+  }
+
+  _upload(
+    body: mixed,
+    options: UploadOptions,
+    headers?: Object = {},
+    raw?: boolean = false,
+  ): Promise<string> {
+    const url = this._getUploadURL(options, raw)
+    return this._fetch(url, { body, headers, method: 'POST' }).then(resText)
+  }
+
+  uploadFile(
+    data: string | Buffer,
+    options?: UploadOptions = {},
+  ): Promise<string> {
+    const body = typeof data === 'string' ? Buffer.from(data) : data
+    const raw = options.contentType == null
+    const headers: Object = { 'content-length': body.length }
+    if (!raw) {
+      headers['content-type'] = options.contentType
+    }
+    return this._upload(body, options, headers, raw)
+  }
+
+  uploadDirectory(
+    _directory: DirectoryData,
+    _options?: UploadOptions,
+  ): Promise<string> {
+    return Promise.reject(new Error('Must be implemented in extending class'))
+  }
+
   upload(
     data: string | Buffer | DirectoryData,
-    headers?: Object = {},
+    options?: UploadOptions = {},
   ): Promise<string> {
-    if (typeof data === 'string' || Buffer.isBuffer(data)) {
-      // $FlowFixMe: Flow doesn't understand type refinement with Buffer check
-      return this.uploadFile(data, headers)
-    } else {
-      return this.uploadDirectory(data)
-    }
+    return typeof data === 'string' || Buffer.isBuffer(data)
+      ? // $FlowFixMe: Flow doesn't understand type refinement with Buffer check
+        this.uploadFile(data, options)
+      : this.uploadDirectory(data, options)
   }
 
-  uploadDirectory(_directory: Object): Promise<string> {
-    return Promise.reject(new Error('Must be implemented in extending class'))
-  }
-
-  downloadDirectory(_hash: string): Promise<string> {
-    return Promise.reject(new Error('Must be implemented in extending class'))
-  }
-
-  uploadFile(data: string | Buffer, headers?: Object = {}): Promise<string> {
-    const body = typeof data === 'string' ? Buffer.from(data) : data
-    headers['content-length'] = body.length
-    return this._fetch(`${this._url}bzz:/`, {
-      body: body,
-      headers: headers,
-      method: 'POST',
-    }).then(parseText)
-  }
-
-  uploadRaw(data: string | Buffer, headers?: Object = {}): Promise<string> {
-    const body = typeof data === 'string' ? Buffer.from(data) : data
-    headers['content-length'] = body.length
-    return this._fetch(`${this._url}bzz-raw:/`, {
-      body: body,
-      headers: headers,
-      method: 'POST',
-    }).then(parseText)
-  }
-
-  download(hash: string, path?: string = ''): Promise<*> {
-    const contentPath = path === '' ? '' : `/${path}`
-    return this._fetch(`${this._url}bzz:/${hash}${contentPath}`)
-  }
-
-  downloadText(hash: string, path?: string = ''): Promise<string> {
-    return this.download(hash, path).then(parseText)
-  }
-
-  downloadRaw(hash: string): Promise<*> {
-    return this._fetch(`${this._url}bzz-raw:/${hash}`)
-  }
-
-  downloadRawText(hash: string): Promise<string> {
-    return this.downloadRaw(hash).then(parseText)
-  }
-
-  listDirectory(hash: string): Promise<ListResult> {
-    return this._fetch(`${this._url}bzz-list:/${hash}`).then(parseJSON)
-  }
-
-  getHash(url: string): Promise<string> {
-    return this._fetch(`${this._url}bzz-hash:/${url}`).then(parseText)
+  deleteResource(hash: string, path: string): Promise<string> {
+    const url = this._getUploadURL({ manifestHash: hash, path })
+    return this._fetch(url, { method: 'DELETE' }).then(resText)
   }
 }

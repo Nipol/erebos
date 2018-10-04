@@ -1,55 +1,44 @@
-# Erebos [![CircleCI](https://img.shields.io/circleci/project/github/RedSparr0w/node-csgo-parser.svg)](https://circleci.com/gh/MainframeHQ/erebos) [![npm](https://img.shields.io/npm/v/erebos.svg)](https://www.npmjs.com/package/erebos)
+# Erebos [![CircleCI](https://img.shields.io/circleci/project/github/MainframeHQ/erebos.svg)](https://circleci.com/gh/MainframeHQ/erebos) [![Gitter](https://badges.gitter.im/MainframeHQ/erebos.svg)](https://gitter.im/MainframeHQ/erebos)
 
-JavaScript client for the Ethereum ecosystem, notably Swarm and PSS.
-
-## Disclaimer
-
-This library is a work-in-progress client for technologies that are still at
-a proof-of-concept stage. It is intended for demonstration purposes only.\
-APIs are likely to be changed and even removed between releases without prior notice.
+JavaScript client and CLI for [Swarm](https://swarm-guide.readthedocs.io/en/latest/index.html).
 
 ## Installation
 
+Node.js v10+ is required to use the Node.js APIs and run the CLI.
+
+### Client library
+
 ```sh
-yarn add @erebos/browser # browser-only
-yarn add @erebos/node # node-only
-yarn add erebos # universal
+yarn add @erebos/swarm-browser # browser-only
+yarn add @erebos/swarm-node # node-only
+yarn add @erebos/swarm # universal
 ```
 
-## Examples
+### CLI
 
-- [Postal Services over Swarm (PSS)](examples/pss.js)
-- [Whisper (SHH)](examples/shh.js)
+```sh
+npm install -g @erebos/cli
+```
 
-## [Documentation](docs/)
+## [Documentation](https://erebos.js.org)
 
-- [Client](docs/client.md)
-- [APIs](docs/api.md)
-  - [Bzz](docs/api-bzz.md) - file storage
-  - [Eth](docs/api-eth.md) - Ethereum blockchain
-  - [Net](docs/api-net.md) - network
-  - [Pss](docs/api-pss.md) - Postal Services over Swarm
-  - [Shh](docs/api-shh.md) - Whisper
-  - [Web3](docs/api-web3.md)
-- RPC client factory for the [browser](https://github.com/MainframeHQ/js-tools/tree/master/packages/rpc-browser#rpc-browser) or [node](https://github.com/MainframeHQ/js-tools/tree/master/packages/rpc-node#rpc-node) depending on the package.
-- [Hexadecimal-encoding utilities](https://github.com/MainframeHQ/js-tools/tree/master/packages/utils-hex#utils-hex)
+- [Getting started](https://erebos.js.org/docs/getting-started)
+- [API reference](https://erebos.js.org/docs/swarm-client)
 
 ## Packages
 
 | Name | Version | Description |
 | ---- | ------- | ----------- |
 | **Clients**
-| [`erebos`](/packages/erebos) | [![npm version](https://img.shields.io/npm/v/erebos.svg)](https://www.npmjs.com/package/erebos) | Universal Erebos library
-| [`@erebos/browser`](/packages/browser) | [![npm version](https://img.shields.io/npm/v/@erebos/browser.svg)](https://www.npmjs.com/package/@erebos/browser) | Browser-only Erebos library
-| [`@erebos/node`](/packages/node) | [![npm version](https://img.shields.io/npm/v/@erebos/node.svg)](https://www.npmjs.com/package/@erebos/node) | Node-only Erebos library
+| [`@erebos/swarm`](/packages/swarm) | [![npm version](https://img.shields.io/npm/v/@erebos/swarm.svg)](https://www.npmjs.com/package/@erebos/swarm) | Universal Erebos library for Swarm
+| [`@erebos/swarm-browser`](/packages/swarm-browser) | [![npm version](https://img.shields.io/npm/v/@erebos/swarm-browser.svg)](https://www.npmjs.com/package/@erebos/swarm-browser) | Browser-only Erebos library for Swarm
+| [`@erebos/swarm-node`](/packages/swarm-node) | [![npm version](https://img.shields.io/npm/v/@erebos/swarm-node.svg)](https://www.npmjs.com/package/@erebos/swarm-node) | Node-only Erebos library for Swarm
 | **Standalone APIs**
 | [`@erebos/api-bzz-browser`](/packages/api-bzz-browser) | [![npm version](https://img.shields.io/npm/v/@erebos/api-bzz-browser.svg)](https://www.npmjs.com/package/@erebos/api-bzz-browser) | Browser-only Swarm (BZZ) APIs
 | [`@erebos/api-bzz-node`](/packages/api-bzz-node) | [![npm version](https://img.shields.io/npm/v/@erebos/api-bzz-node.svg)](https://www.npmjs.com/package/@erebos/api-bzz-node) | Node-only Swarm (BZZ) APIs
-| [`@erebos/api-eth`](/packages/api-eth) | [![npm version](https://img.shields.io/npm/v/@erebos/api-eth.svg)](https://www.npmjs.com/package/@erebos/api-eth) | Ethereum (eth) APIs
-| [`@erebos/api-net`](/packages/api-net) | [![npm version](https://img.shields.io/npm/v/@erebos/api-net.svg)](https://www.npmjs.com/package/@erebos/api-net) | Net APIs
 | [`@erebos/api-pss`](/packages/api-pss) | [![npm version](https://img.shields.io/npm/v/@erebos/api-pss.svg)](https://www.npmjs.com/package/@erebos/api-pss) | Postal Services over Swarm (PSS) APIs
-| [`@erebos/api-shh`](/packages/api-shh) | [![npm version](https://img.shields.io/npm/v/@erebos/api-shh.svg)](https://www.npmjs.com/package/@erebos/api-shh) | Whisper (SHH) APIs
-| [`@erebos/api-web3`](/packages/api-web3) | [![npm version](https://img.shields.io/npm/v/@erebos/api-web3.svg)](https://www.npmjs.com/package/@erebos/api-eth) | Web3 APIs
+| **CLI**
+| [`@erebos/cli`](/packages/cli) | [![npm version](https://img.shields.io/npm/v/@erebos/cli.svg)](https://www.npmjs.com/package/@erebos/cli) |
 | **Base classes**
 | [`@erebos/api-bzz-base`](/packages/api-bzz-base) | [![npm version](https://img.shields.io/npm/v/@erebos/api-bzz-base.svg)](https://www.npmjs.com/package/@erebos/api-bzz-base) | Shared logic for Swarm (BZZ) APIs
 | [`@erebos/client-base`](/packages/client-base) | [![npm version](https://img.shields.io/npm/v/@erebos/client-base.svg)](https://www.npmjs.com/package/@erebos/client-base) | Shared logic for Client APIs

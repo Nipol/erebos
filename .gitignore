@@ -5,5 +5,7 @@ external_deps
 /packages/*/esm
 /packages/*/lib
 /packages/*/umd
+/packages/*/dist
 /packages/*/.flowconfig
+/website/build
 *.log
