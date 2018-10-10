@@ -35,6 +35,7 @@ export default class BzzUploadCommand extends Command {
       )
       this.spinner.succeed(`Contents successfully uploaded with hash: ${hash}`)
     } catch (err) {
+      console.log('error', err)
       this.spinner.fail(err.message)
     }
   }
