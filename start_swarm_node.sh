@@ -20,6 +20,11 @@ KEY=$(jq --raw-output '.address' $DATADIR/keystore/*)
     --password $DATADIR/password \
     --verbosity 4 \
     --bzzaccount $KEY \
+    --bzzport 8500 \
+    --ws \
+    --wsorigins '*' \
+    --wsport 8540 \
+    --port 30400 \
     --httpaddr 0.0.0.0 \
     --nat none \
     --corsdomain "*" \
