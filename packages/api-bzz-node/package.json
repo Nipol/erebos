@@ -24,9 +24,7 @@
     "@erebos/api-bzz-base": "^0.4.1",
     "form-data": "^2.3.2",
     "fs-extra": "^7.0.0",
-    "keccak": "^1.4.0",
     "node-fetch": "^2.2.0",
-    "secp256k1": "^3.5.2",
     "tar-fs": "^1.16.3",
     "tar-stream": "^1.6.1"
   },
